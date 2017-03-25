@@ -8,9 +8,9 @@
  // Modified by FREE WING, Y.Sakamoto
  // http://www.neko.ne.jp/~freewing/
  //
- // The pigpio library version
- // gcc -o fbflex_lcd_pi_pigpio fbflex_lcd_pi_pigpio.c -lpigpio -lrt -lpthread
- // sudo ./fbflex_lcd_pi_pigpio
+ // Linux spidev version
+ // gcc -o fbflex_lcd_pi_spidev fbflex_lcd_pi_spidev.c
+ // sudo ./fbflex_lcd_pi_spidev
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,9 +19,9 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
-#include <time.h>
-#include <pigpio.h>
+#include <linux/spi/spidev.h>
 
+#define LCD_DEVICE "/dev/spidev0.0"
 #define LCD_CS 0
 #define TOUCH_CS 1
 #define LCD_WIDTH  480
@@ -36,6 +36,10 @@
 #define uint16_t unsigned int
 #define uint32_t unsigned long
 
+static const uint32_t mode = 0;
+static const uint8_t bits = 8;
+static const uint32_t speed = 32000000;
+
 uint8_t lcd_rotations[4] = {
 	0b00101000,	//   0
 	0b10001000,	//  90
@@ -48,6 +52,7 @@ volatile uint8_t lcd_rotation;
 volatile uint16_t lcd_h;
 volatile uint16_t lcd_w;
 volatile int spih;
+volatile int gpioh;
 
 uint16_t colors[16] = {
 	0b0000000000000000,				/* BLACK	000000 */
@@ -70,37 +75,115 @@ uint16_t colors[16] = {
 
 
 void delayms(int ms) {
-	time_sleep(ms/1000.0);
+
+	struct timespec req;
+	req.tv_sec  = 0;
+	req.tv_nsec = ms * 1000000L;
+
+	nanosleep(&req, NULL);
 }
 
 
 int lcd_open(void) {
-	int r;
-	uint32_t v;
-	r = gpioInitialise();
-	if(r<0) return -1;
+#define BUFFER_MAX 3
+#define DIRECTION_MAX 35
+	char buffer[BUFFER_MAX];
+	char path[DIRECTION_MAX];
+	ssize_t bytes_written;
+	int ret;
 
-	// 21MHz NG 20.8334MHz
-	// 20MHz OK 20.8332MHz
-	// 16MHz, MSB first, 3wire
-	spih = spiOpen(LCD_CS, 19200000, 0);
+	spih = open(LCD_DEVICE, O_WRONLY);
 	if(spih<0) return -1;
 
-	gpioSetMode(GPIO_LCD_RST, PI_OUTPUT);
-	gpioSetMode(GPIO_LCD_DC, PI_OUTPUT);
+	ret = ioctl(spih, SPI_IOC_WR_MODE32, &mode);
+	if (ret<0) return -1;
+
+	ret = ioctl(spih, SPI_IOC_WR_BITS_PER_WORD, &bits);
+	if (ret<0) return -1;
+
+	ret = ioctl(spih, SPI_IOC_WR_MAX_SPEED_HZ, &speed);
+	if (ret<0) return -1;
+
+	//
+	gpioh = open("/sys/class/gpio/export", O_WRONLY);
+	if (gpioh<0) return -1;
+
+	bytes_written = snprintf(buffer, BUFFER_MAX, "%d", GPIO_LCD_RST);
+	write(gpioh, buffer, bytes_written);
+	close(gpioh);
+
+	gpioh = open("/sys/class/gpio/export", O_WRONLY);
+	if (gpioh<0) return -1;
+
+	bytes_written = snprintf(buffer, BUFFER_MAX, "%d", GPIO_LCD_DC);
+	write(gpioh, buffer, bytes_written);
+	close(gpioh);
+
+	//
+	snprintf(path, DIRECTION_MAX, "/sys/class/gpio/gpio%d/direction", GPIO_LCD_RST);
+	gpioh = open(path, O_WRONLY);
+	write(gpioh, "out", 3);
+	close(gpioh);
+
+	snprintf(path, DIRECTION_MAX, "/sys/class/gpio/gpio%d/direction", GPIO_LCD_DC);
+	gpioh = open(path, O_WRONLY);
+	write(gpioh, "out", 3);
+	close(gpioh);
 
 	return 0;
 }
 
 int lcd_close(void) {
-	spiClose(spih);
-	gpioTerminate();
+#define BUFFER_MAX 3
+	char buffer[BUFFER_MAX];
+	ssize_t bytes_written;
+
+	close(spih);
+
+	//
+	gpioh = open("/sys/class/gpio/unexport", O_WRONLY);
+	if (gpioh<0) return -1;
+
+	bytes_written = snprintf(buffer, BUFFER_MAX, "%d", GPIO_LCD_RST);
+	write(gpioh, buffer, bytes_written);
+	close(gpioh);
+
+	gpioh = open("/sys/class/gpio/unexport", O_WRONLY);
+	if (gpioh<0) return -1;
+
+	bytes_written = snprintf(buffer, BUFFER_MAX, "%d", GPIO_LCD_DC);
+	write(gpioh, buffer, bytes_written);
+	close(gpioh);
+
+	return 0;
+}
+
+int gpioWrite(int pin, int value) {
+#define VALUE_MAX 30
+	char path[VALUE_MAX];
+
+	snprintf(path, VALUE_MAX, "/sys/class/gpio/gpio%d/value", pin);
+	gpioh = open(path, O_WRONLY);
+	if (gpioh<0) return -1;
+
+	write(gpioh, (value == 0)? "0": "1", 1);
+	close(gpioh);
 
 	return 0;
 }
 
 int spi_transmit(int devsel, uint8_t *data, int len) {
-	return spiWrite(spih, (char*)data, len);
+
+	struct spi_ioc_transfer tr = {
+			.tx_buf = (unsigned long)data,
+			.rx_buf = (unsigned long)NULL,
+			.len = len,
+			.delay_usecs = 0,
+			.speed_hz = speed,
+			.bits_per_word = bits
+		};
+
+	return ioctl(spih, SPI_IOC_MESSAGE(1), &tr);
 }
 
 void lcd_rst(void) {

@@ -99,7 +99,7 @@ int lcd_close(void) {
 	return 0;
 }
 
-int spi_transmit(int devsel, uint8_t *data, int len) {
+void spi_transmit(int devsel, uint8_t *data, int len) {
 	if(devsel == 0)
 	{
 		bcm2835_spi_chipSelect(BCM2835_SPI_CS0);
@@ -110,15 +110,9 @@ int spi_transmit(int devsel, uint8_t *data, int len) {
 }
 
 void lcd_rst(void) {
-//	uint8_t buff[1];
-
-//	buff[0] = 0x00;
-//	spi_transmit(LCD_CS, &buff[0], sizeof(buff));
 	bcm2835_gpio_write(GPIO_LCD_RST, LOW);
 	delayms(150);
 
-//	buff[0] = 0x01;
-//	spi_transmit(LCD_CS, &buff[0], sizeof(buff));
 	bcm2835_gpio_write(GPIO_LCD_RST, HIGH);
 	delayms(250);
 }
@@ -153,13 +147,10 @@ void lcd_color(uint16_t col) {
 
 	bcm2835_gpio_write(GPIO_LCD_DC, HIGH);
 
-	// 18bit color mode ???
-	// 0xF800 R(R5-R1, DB17-DB13)
-	// 0x07E0 G(G5-G0, DB11- DB6)
-	// 0x001F B(B5-B1, DB5 - DB1)
-	// 0x40 = R(R0, DB12), 0x20 = B(B0, DB0)
-	// copy Red/Blue color bit1 to bit0
-
+	// RGB565
+	// 0xF800 R(R4-R0, DB15-DB11)
+	// 0x07E0 G(G5-G0, DB10- DB5)
+	// 0x001F B(B4-B0, DB4 - DB0)
 	b1[0]= col>>8;
 	b1[1]= col&0x00FF;
 	spi_transmit(LCD_CS, &b1[0], sizeof(b1));
@@ -168,6 +159,10 @@ void lcd_color(uint16_t col) {
 
 uint16_t colorRGB(uint8_t r, uint8_t g, uint8_t b) {
 
+	// RGB565
+	// 0xF800 R(R4-R0, DB15-DB11)
+	// 0x07E0 G(G5-G0, DB10- DB5)
+	// 0x001F B(B4-B0, DB4 - DB0)
 	uint16_t col = ((r<<8) & 0xF800) | ((g<<3) & 0x07E0) | ((b>>3) & 0x001F);
 //	printf("%02x %02x %02x %04x\n", r, g, b, col);
 
@@ -178,9 +173,8 @@ uint16_t colorRGB(uint8_t r, uint8_t g, uint8_t b) {
 // 18bit color mode
 void lcd_colorRGB(uint8_t r, uint8_t g, uint8_t b) {
 
-	uint16_t col = ((r<<8) & 0xF800) | ((g<<3) & 0x07E0) | ((b>>3) & 0x001F);
-
-	lcd_color(col);
+	// RGB565
+	lcd_color(colorRGB(r, g, b));
 }
 
 
@@ -259,7 +253,7 @@ void lcd_fillframe(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t col)
 }
 
 void lcd_fill(uint16_t col) {
-	lcd_fillframe(0, 0, LCD_WIDTH, LCD_HEIGHT, col);
+	lcd_fillframe(0, 0, lcd_w, lcd_h, col);
 }
 
 
@@ -271,7 +265,7 @@ void lcd_fillframeRGB(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t r,
 }
 
 void lcd_fillRGB(uint8_t r, uint8_t g, uint8_t b) {
-	lcd_fillframeRGB(0, 0, LCD_WIDTH, LCD_HEIGHT, r, g, b);
+	lcd_fillframeRGB(0, 0, lcd_w, lcd_h, r, g, b);
 }
 
 
@@ -340,7 +334,7 @@ void loop() {
 	//if rotation is overflowed, reset to 0
 	if (lcd_rotation==4) lcd_rotation=0;
 
-	delay(500);
+	delayms(500);
 }
 
 
@@ -353,7 +347,7 @@ int main(int argc,char *argv[]) {
 	lcd_fill(0); //black out the screen.
 	// 24bit Bitmap only
 	lcd_img("fbflex_lcd_pi.bmp", 50, 5);
-	delay(500);
+	delayms(500);
 
 	lcd_fillRGB(0xFF, 0x00, 0x00);
 	lcd_fillRGB(0x00, 0xFF, 0x00);
@@ -366,7 +360,7 @@ int main(int argc,char *argv[]) {
 
 	// 24bit Bitmap only
 	lcd_img("fbflex_lcd_pi.bmp", 50, 5);
-	delay(500);
+	delayms(500);
 
 	// Demo
 	color=0;
