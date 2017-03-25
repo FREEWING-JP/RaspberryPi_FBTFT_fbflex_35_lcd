@@ -53,6 +53,7 @@ volatile uint16_t lcd_h;
 volatile uint16_t lcd_w;
 volatile int spih;
 volatile int gpioh;
+volatile int gpiowh;
 
 uint16_t colors[16] = {
 	0b0000000000000000,				/* BLACK	000000 */
@@ -73,6 +74,27 @@ uint16_t colors[16] = {
 	0b1111111111111111				/* WHITE	ffffff */
 };
 
+
+int gpioWriteOpen() {
+#define VALUE_MAX 30
+	char path[VALUE_MAX];
+	int pin = GPIO_LCD_DC;
+
+	snprintf(path, VALUE_MAX, "/sys/class/gpio/gpio%d/value", pin);
+	gpiowh = open(path, O_WRONLY);
+	if (gpiowh<0) return -1;
+
+	return 0;
+}
+
+void gpioWriteValue(int value) {
+
+	write(gpiowh, (value == 0)? "0": "1", 1);
+}
+
+void gpioWriteClose() {
+	close(gpiowh);
+}
 
 void delayms(int ms) {
 
@@ -130,6 +152,8 @@ int lcd_open(void) {
 	write(gpioh, "out", 3);
 	close(gpioh);
 
+	gpioWriteOpen();
+
 	return 0;
 }
 
@@ -137,6 +161,8 @@ int lcd_close(void) {
 #define BUFFER_MAX 3
 	char buffer[BUFFER_MAX];
 	ssize_t bytes_written;
+
+	gpioWriteClose();
 
 	close(spih);
 
@@ -199,20 +225,20 @@ void lcd_rst(void) {
 void lcd_cmd(uint8_t cmd) {
 	uint8_t b1[2];
 
-	gpioWrite(GPIO_LCD_DC, 0);
+	gpioWriteValue(0);
 
 	b1[0] = 0x00;
 	b1[1] = cmd;
 	spi_transmit(LCD_CS, &b1[0], sizeof(b1));
 
-	gpioWrite(GPIO_LCD_DC, 1);
+	gpioWriteValue(1);
 }
 
 
 void lcd_data(uint8_t dat) {
 	uint8_t b1[2];
 
-	gpioWrite(GPIO_LCD_DC, 1);
+//	gpioWriteValue(1);
 
 	b1[0] = 0x00;
 	b1[1] = dat;
@@ -223,7 +249,7 @@ void lcd_data(uint8_t dat) {
 void lcd_color(uint16_t col) {
 	uint8_t b1[2];
 
-	gpioWrite(GPIO_LCD_DC, 1);
+//	gpioWriteValue(1);
 
 	// RGB565
 	// 0xF800 R(R4-R0, DB15-DB11)
