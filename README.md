@@ -1,8 +1,15 @@
 # RaspberryPi_FBTFT_fbflex_35_lcd
-RaspberryPi_FBTFT_fbflex_35_lcd
+Raspberry Pi FBTFT fbflex 3.5 inch TFT LCD module V5.0 SPI Control program
 
 ---
 ## Raspberry Pi用 FBTFT fbflex対応の汎用 3.5インチ TFT液晶を自前のプログラムで制御する方法
+http://www.neko.ne.jp/~freewing/raspberry_pi/raspberry_pi_3_tft_lcd_35inch_fbflex_2/
+
+You can choose any control method .  
+1. bcm2835 version  
+2. The pigpio library version  
+3. Linux spidev version  
+4. WiringPi library version  
 
 ## FREE WING Homepage
 http://www.neko.ne.jp/~freewing/
@@ -82,6 +89,26 @@ gcc -o fbflex_lcd_pi_spidev fbflex_lcd_pi_spidev.c
 
 #### # execute !
 sudo ./fbflex_lcd_pi_spidev
+
+
+---
+## Build WiringPi library version
+##### # WiringPi - GPIO Interface library for the Raspberry Pi
+##### # http://wiringpi.com/
+
+#### # Enable SPI
+sudo raspi-config
+
+#### # git clone
+cd  
+git clone https://github.com/FREEWING-JP/RaspberryPi_FBTFT_fbflex_35_lcd.git
+
+#### # compile
+cd ~/RaspberryPi_FBTFT_fbflex_35_lcd  
+gcc -o fbflex_lcd_pi_wiringpi fbflex_lcd_pi_wiringpi.c -lwiringPi
+
+#### # execute !
+sudo ./fbflex_lcd_pi_wiringpi
 
 
 ---
