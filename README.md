@@ -1,5 +1,5 @@
 # RaspberryPi_FBTFT_fbflex_35_lcd
-Raspberry Pi FBTFT fbflex 3.5 inch TFT LCD module V5.0 SPI Control program
+Raspberry Pi FBTFT fbflex 3.5 inch TFT LCD module SPI Control program
 
 ---
 ## Raspberry Pi用 FBTFT fbflex対応の汎用 3.5インチ TFT液晶を自前のプログラムで制御する方法
@@ -13,6 +13,21 @@ You can choose any control method .
 
 ## FREE WING Homepage
 http://www.neko.ne.jp/~freewing/
+
+---
+## Other Resources
+
+#### Orange Pi PC 2 Allwinner H5 FBTFT fbflex 3.5 inch TFT LCD module SPI Control program
+https://github.com/FREEWING-JP/OrangePi_PC2_FBTFT_fbflex_35_lcd  
+
+#### Raspberry Pi FBTFT fbflex 3.5 inch TFT LCD module SPI Control program
+https://github.com/FREEWING-JP/RaspberryPi_FBTFT_fbflex_35_lcd  
+
+#### Raspberry Pi KeDei 3.5 inch TFT LCD module V5.0 SPI Control program
+https://github.com/FREEWING-JP/RaspberryPi_KeDei_35_lcd_v50  
+
+#### tinydrm for KeDei 3.5 inch V5.0 LCD module
+https://github.com/FREEWING-JP/tinydrm/tree/feature/kedei_35_v50/kedei_35_lcd_v50  
 
 ---
 ## References（参考文献）
